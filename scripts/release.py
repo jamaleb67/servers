@@ -22,6 +22,9 @@ Version = NewType("Version", str)
 GitHash = NewType("GitHash", str)
 
 
+PYPROJECT_TOML = "pyproject.toml"
+
+
 class GitHashParamType(click.ParamType):
     name = "git_hash"
 
@@ -81,20 +84,20 @@ class PyPiPackage:
     path: Path
 
     def package_name(self) -> str:
-        with open(self.path / "pyproject.toml") as f:
+        with open(self.path / PYPROJECT_TOML) as f:
             toml_data = tomlkit.parse(f.read())
             name = toml_data.get("project", {}).get("name")
             if not name:
-                raise Exception("No name in pyproject.toml project section")
+                raise ValueError("No name in pyproject.toml project section")
             return str(name)
 
     def update_version(self, version: Version):
         # Update version in pyproject.toml
-        with open(self.path / "pyproject.toml") as f:
+        with open(self.path / PYPROJECT_TOML) as f:
             data = tomlkit.parse(f.read())
             data["project"]["version"] = version
 
-        with open(self.path / "pyproject.toml", "w") as f:
+        with open(self.path / PYPROJECT_TOML, "w") as f:
             f.write(tomlkit.dumps(data))
 
 
@@ -126,14 +129,14 @@ def find_changed_packages(directory: Path, git_hash: GitHash) -> Iterator[Packag
     for path in directory.glob("*/package.json"):
         if has_changes(path.parent, git_hash):
             yield NpmPackage(path.parent)
-    for path in directory.glob("*/pyproject.toml"):
+    for path in directory.glob(f"*/{PYPROJECT_TOML}"):
         if has_changes(path.parent, git_hash):
             yield PyPiPackage(path.parent)
 
 
 @click.group()
 def cli():
-    pass
+    """CLI for release tooling"""
 
 
 @cli.command("update-packages")
@@ -192,15 +195,14 @@ def generate_version() -> int:
 def generate_matrix(directory: Path, git_hash: GitHash, pypi: bool, npm: bool) -> int:
     # Detect package type
     path = directory.resolve(strict=True)
-    version = gen_version()
 
     changes = []
     for package in find_changed_packages(path, git_hash):
         pkg = package.path.relative_to(path)
         if npm and isinstance(package, NpmPackage):
-            changes.append(str(pkg))
+            changes.append({"package": str(pkg), "type": "npm"})
         if pypi and isinstance(package, PyPiPackage):
-            changes.append(str(pkg))
+            changes.append({"package": str(pkg), "type": "pypi"})
 
     click.echo(json.dumps(changes))
     return 0
