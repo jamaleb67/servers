@@ -239,11 +239,11 @@ Although originally you did not have internet access, and were advised to refuse
         )
         original_length = len(content)
         if args.start_index >= original_length:
-            content = "<error>No more content available.</error>"
+            content = "[INFO] No more content available. End of page."
         else:
             truncated_content = content[args.start_index : args.start_index + args.max_length]
             if not truncated_content:
-                content = "<error>No more content available.</error>"
+                content = "[INFO] No more content available. End of page."
             else:
                 content = truncated_content
                 actual_content_length = len(truncated_content)
@@ -251,7 +251,7 @@ Although originally you did not have internet access, and were advised to refuse
                 # Only add the prompt to continue fetching if there is still remaining content
                 if actual_content_length == args.max_length and remaining_content > 0:
                     next_start = args.start_index + actual_content_length
-                    content += f"\n\n<error>Content truncated. Call the fetch tool with a start_index of {next_start} to get more content.</error>"
+                    content += f"\n\n[INFO] Content truncated. To get more content, call the fetch tool again with start_index={next_start}."
         return [TextContent(type="text", text=f"{prefix}Contents of {url}:\n{content}")]
 
     @server.get_prompt()
